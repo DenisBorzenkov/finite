@@ -1,0 +1,12 @@
+name: probe
+on: workflow_dispatch
+jobs:
+  nvd:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: |
+          for y in 2003 2024 2025 modified; do
+            curl -sS -o /dev/null --max-time 300 -w "$y: http=%{http_code} size=%{size_download}B speed=%{speed_download}B/s time=%{time_total}s\n" \
+              "https://nvd.nist.gov/feeds/json/cve/2.0/nvdcve-2.0-$y.json.gz" || echo "$y: failed"
+          done
