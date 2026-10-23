@@ -63,10 +63,25 @@ jobs:
             --system aarch64-linux \
             --print-build-logs
 
+      - name: Keep the NVD feeds between runs
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/vulnix
+          key: vulnix-nvd-${{ github.run_id }}
+          restore-keys: vulnix-nvd-
+
       - name: Scan the built closure with vulnix
         run: |
           nix build nixpkgs#vulnix -o vulnix-bin
-          ./vulnix-bin/bin/vulnix ./result 2>&1 | tee vulnix.txt || true
+          # nvd.nist.gov stalls past the 10 s read timeout now and then, the feeds
+          # already on disk survive a retry
+          for attempt in 1 2 3; do
+            if ./vulnix-bin/bin/vulnix ./result > vulnix.txt 2>&1 || ! grep -q Traceback vulnix.txt; then
+              break
+            fi
+            echo "attempt $attempt crashed while talking to nvd.nist.gov, retrying"
+          done
+          cat vulnix.txt
           {
             echo '## vulnix'
             echo '```'
